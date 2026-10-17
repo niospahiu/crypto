@@ -29,6 +29,7 @@ export default function TestnetCheckout() {
   const [receipt, setReceipt] = useState('');
   const [error, setError] = useState('');
   const [attemptedFrom, setAttemptedFrom] = useState('');
+  const [mockReceipt, setMockReceipt] = useState(false);
 
   // No automatic wallet actions. Timer is UI-only, not a payment guarantee.
   useEffect(() => {
@@ -48,12 +49,26 @@ export default function TestnetCheckout() {
     setReceipt('');
     setError('');
     setAttemptedFrom('');
+    setMockReceipt(false);
   }, [account?.address, network]);
 
   function generateQuote() {
     setReceipt('');
+    setMockReceipt(false);
     setError('');
     setExpiresAt(Date.now() + QUOTE_LENGTH * 1000);
+  }
+
+  function simulateCheckout() {
+    if (!expiresAt || Date.now() >= expiresAt) {
+      setError('The demo quote expired. Create a new one to simulate the checkout.');
+      return;
+    }
+    if (busy) return;
+    // A local UI-only simulation: never signs, never transfers, never creates an order.
+    setMockReceipt(true);
+    setExpiresAt(null);
+    setError('');
   }
 
   async function pay() {
@@ -117,13 +132,18 @@ export default function TestnetCheckout() {
       setReceipt(digest);
       setExpiresAt(null);
     } catch (e) {
-      setError(e?.message || 'Wallet request failed or was rejected.');
+      const message = e?.message || 'Wallet request failed or was rejected.';
+      if (/passphrase and private key accounts cannot be unlocked on web/i.test(message)) {
+        setError('Slush Web does not allow this imported passphrase/private-key account to sign here. Your TEC has not moved. You can still test the checkout using the SIMULATE button (no blockchain transaction).');
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  const quoteLive = remaining > 0 && !receipt;
+  const quoteLive = remaining > 0 && !receipt && !mockReceipt;
   const walletChanged = attemptedFrom && account?.address !== attemptedFrom;
 
   return (
@@ -133,7 +153,8 @@ export default function TestnetCheckout() {
         <span className="lab-badge">SIMULATED PRICING</span>
       </div>
       <p className="checkout-intro">Practice a wallet-authorized Testnet token transfer.
-        This is a developer experiment, not a real purchase or protected merchant checkout.</p>
+        This is a developer experiment, not a real purchase or protected merchant checkout.
+        Slush Web may prevent imported passphrase/private-key accounts from signing; never enter your key on this website.</p>
 
       <div className="checkout-grid">
         <div className="demo-product">
@@ -150,26 +171,40 @@ export default function TestnetCheckout() {
       </div>
 
       <div className="checkout-actions">
-        {!receipt && (
+        {!receipt && !mockReceipt && (
           <button className="quote-button" type="button" disabled={busy} onClick={generateQuote}>
             {expiresAt ? '↻ Restart 2-min demo quote' : 'Create 2-min demo quote'}
           </button>
         )}
-        {expiresAt && !receipt && (
+        {expiresAt && !receipt && !mockReceipt && (
           <div className="timer" aria-live="polite">
             {quoteLive ? 'Expires in ' + pad2(Math.floor(remaining / 60)) + ':' + pad2(remaining % 60)
                        : 'Quote expired — create a new one'}
           </div>
         )}
-        {!receipt && expiresAt && (
-          <button className="pay-button" type="button" onClick={pay}
-            disabled={busy || !quoteLive || !account || network !== 'testnet'}>
-            {busy ? 'Waiting for Slush / network…' : 'Approve ' + TOKENS_TO_SEND + ' Testnet TEC transfer'}
-          </button>
+        {!receipt && !mockReceipt && expiresAt && (
+          <>
+            <button className="pay-button" type="button" onClick={simulateCheckout}
+              disabled={busy || !quoteLive}>
+              Simulate checkout (NO transfer)
+            </button>
+            <button className="quote-button" type="button" onClick={pay}
+              disabled={busy || !quoteLive || !account || network !== 'testnet'}>
+              {busy ? 'Waiting for Slush / network…' : 'Optional: Sign real Testnet ' + TOKENS_TO_SEND + ' TEC transfer'}
+            </button>
+          </>
         )}
       </div>
 
       {error && <p role="alert" className="error">{error}</p>}
+      {mockReceipt && (
+        <div className="demo-receipt" role="status">
+          <b>✓ Demo checkout flow complete — SIMULATION ONLY</b>
+          <p>Test price: {TOKENS_TO_SEND} TEC. No Slush signature was requested,
+             no TEC or SUI moved and no blockchain transaction or order was created.</p>
+          <button type="button" onClick={generateQuote}>Restart demo</button>
+        </div>
+      )}
       {receipt && (
         <div className="demo-receipt" role="status">
           <b>✓ Testnet transfer executed</b>
@@ -180,9 +215,9 @@ export default function TestnetCheckout() {
         </div>
       )}
       {walletChanged && <p className="error">Wallet changed while signing. Re-check your receipt on the explorer.</p>}
-      <p className="checkout-warning">⚠️ TESTNET ONLY. Clicking the transfer button asks Slush to send {TOKENS_TO_SEND} test TEC
+      <p className="checkout-warning">⚠️ TESTNET ONLY. The green SIMULATE button never sends anything. The separate optional transfer button asks Slush to send {TOKENS_TO_SEND} test TEC
         to the development wallet, and gas fees consume Testnet SUI. No actual EUR/TEC price exists.
-        The two-minute timer runs in the browser only; it does not enforce an on-chain expiry.
+        Imported passphrase/private-key accounts may be restricted from signing via Slush Web; this app does not bypass wallet restrictions. The two-minute timer runs in the browser only; it does not enforce an on-chain expiry.
         Real orders require a server-issued quote, replay protection, verified transaction details,
         legal review, and server-side order settlement.</p>
     </section>
