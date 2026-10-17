@@ -40,3 +40,21 @@ Documentation:
 The built-in Vite development middleware registers `/api/tec-demo/quotes`, `/api/tec-demo/orders?wallet=...`, and `/api/tec-demo/orders/:id/simulate`. These generate **server-timed 120-second demonstration quotes**, store **SIMULATED — NOT PAID** order entries in `.tec-test-orders.json`, and show recent local order history. This record remains after browser refresh and server restart, but is **not** a real customer order, an authenticated wallet signature, or proof of payment. No network transfers are required.
 
 This educational API works only with `npm run dev` on the same device. A static `npm run build` deployment does not contain the API and needs a separate secure backend. **Do not expose the Vite development server publicly, and do not use this code for Mainnet sales or merchant acceptance.**
+
+## Phase 4 — Read-only on-chain Testnet verification (development)
+
+The optional *Slush Testnet transfer* button continues to require the wallet's normal confirmation. Imported private-key / mnemonic accounts may not be allowed to sign in Slush Web; **this does not bypass that restriction**. A separate `Verify digest on Sui Testnet` field allows a transaction made independently through an approved wallet flow to be checked by the local server (without signing or sending anything from the form).
+
+The new endpoint `POST /api/tec-demo/orders/:id/verify` accepts a transaction digest. The local server queries **Sui Testnet gRPC**, and checks:
+
+- Sui reports a successful on-chain execution;
+- the transaction sender matches the quote wallet;
+- the correct TEC coin type moved, with an **exact** 9 TEC debit and 9 TEC credit to the test recipient;
+- the on-chain checkpoint timestamp is within the server-issued quote's 120-second window;
+- the same digest is not assigned to another local Testnet order.
+
+Only if all checks pass is the local order flagged `verified_testnet`. This never means production `paid` or `fulfilled`. Old `simulated` order records remain explicitly NOT PAID. Failing verification does **not** revert an already executed blockchain transfer.
+
+Run offline verifier unit tests in Termux with `npm run test:verify`. These use fake RPC client responses and do not move tokens.
+
+**Not production-safe:** The local API is unauthenticated and a generic Sui coin transfer has no cryptographic order-specific payment nonce. Do not open this dev server to the internet, attach payment fulfilment, or reuse screenshots-exposed wallet keys with money. A real payment flow requires per-order on-chain binding (e.g., contract event / nonce), user authentication, server-side settlement, secure merchant custody, monitoring and review.

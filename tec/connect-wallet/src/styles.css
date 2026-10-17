@@ -63,3 +63,40 @@ footer span{display:block}
   .demo-history-row code{font-size:12px}
   footer span+span{margin-top:6px}
 }
+
+/* Phase 4 - paste a Testnet transaction digest for local verification */
+.manual-verify{
+  margin:24px 0 18px;
+  padding:20px;
+  border:1px solid #45615a;
+  background:#0f1b1c;
+  border-radius:12px;
+}
+.manual-verify .eyebrow{display:block;color:#ade3c2}
+.manual-verify p{line-height:1.7;font-size:12px;color:#b5c0c4}
+.manual-verify input{
+  display:block;
+  width:100%;
+  background:#090f13;
+  color:#eef7f4;
+  font-family:monospace;
+  font-size:12px;
+  padding:15px 12px;
+  border:1px solid #53706c;
+  outline-offset:3px;
+  border-radius:8px;
+  margin:13px 0;
+  min-width:0;
+}
+.manual-verify .quote-button{width:100%}
+.manual-verify>small{
+  display:block;
+  margin-top:14px;
+  font-size:11px;
+  color:#b8c8c6;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+@media(max-width:750px){
+  .manual-verify{padding:15px 13px}
+}

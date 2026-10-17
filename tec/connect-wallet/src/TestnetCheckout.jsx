@@ -33,6 +33,8 @@ export default function TestnetCheckout() {
   const [orderId, setOrderId] = useState('');
   const [demoHistory, setDemoHistory] = useState([]);
   const [demoRef, setDemoRef] = useState('');
+  const [digestInput, setDigestInput] = useState('');
+  const [submittedDigest, setSubmittedDigest] = useState('');
 
   // No automatic wallet actions. Timer is UI-only, not a payment guarantee.
   useEffect(() => {
@@ -55,6 +57,8 @@ export default function TestnetCheckout() {
     setMockReceipt(false);
     setOrderId('');
     setDemoRef('');
+    setDigestInput('');
+    setSubmittedDigest('');
     setDemoHistory([]);
     if (account?.address && network === 'testnet') {
       fetch('/api/tec-demo/orders?wallet=' + encodeURIComponent(account.address))
@@ -76,6 +80,8 @@ export default function TestnetCheckout() {
     setError('');
     setOrderId('');
     setDemoRef('');
+    setDigestInput('');
+    setSubmittedDigest('');
     setExpiresAt(null);
     try {
       const response = await fetch('/api/tec-demo/quotes', {
@@ -89,6 +95,47 @@ export default function TestnetCheckout() {
       setExpiresAt(data.expiresAt);
     } catch (e) {
       setError(e?.message || 'Local demonstration order server unavailable.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reloadHistory(wallet) {
+    const response = await fetch('/api/tec-demo/orders?wallet=' + encodeURIComponent(wallet));
+    if (response.ok) {
+      const result = await response.json();
+      setDemoHistory(Array.isArray(result.orders) ? result.orders : []);
+    }
+  }
+
+  async function verifyDigestOnServer(digest) {
+    if (!orderId || !account || network !== 'testnet') {
+      throw new Error('Connect a Testnet wallet and create a quote first.');
+    }
+    const response = await fetch('/api/tec-demo/orders/' + encodeURIComponent(orderId) + '/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ digest: digest.trim() }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Sui Testnet verification failed.');
+    if (data.status !== 'verified_testnet' || data.digest !== digest.trim()) {
+      throw new Error('Server did not confirm the Testnet transfer.');
+    }
+    setReceipt(data.digest);
+    setExpiresAt(null);
+    setError('');
+    await reloadHistory(account.address);
+  }
+
+  async function manuallyVerifyDigest() {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await verifyDigestOnServer(digestInput);
+    } catch (e) {
+      setError(e?.message || 'Unable to verify Sui Testnet digest.');
     } finally {
       setBusy(false);
     }
@@ -111,11 +158,7 @@ export default function TestnetCheckout() {
       setMockReceipt(true);
       setDemoRef(data.id);
       setExpiresAt(null);
-      const list = await fetch('/api/tec-demo/orders?wallet=' + encodeURIComponent(account.address));
-      if (list.ok) {
-        const result = await list.json();
-        setDemoHistory(Array.isArray(result.orders) ? result.orders : []);
-      }
+      await reloadHistory(account.address);
     } catch (e) {
       setError(e?.message || 'Could not save demo to local order history.');
     } finally {
@@ -173,16 +216,16 @@ export default function TestnetCheckout() {
       }
 
       const digest = result.Transaction.digest;
-      // A digest is not enough for production merchant settlement, but onchain
-      // execution success is a legitimate result for this isolated test.
+      // Preserve submitted digest even if server verification is temporarily
+      // unavailable. The app must NEVER show verified based on the wallet alone.
+      setSubmittedDigest(digest);
+      setDigestInput(digest);
       try {
         await client.waitForTransaction({ digest });
       } catch {
-        // Wallet already reported chain execution success. Explorer can still
-        // show the digest while indexers catch up.
+        // Indexing may lag; manual re-verification remains available.
       }
-      setReceipt(digest);
-      setExpiresAt(null);
+      await verifyDigestOnServer(digest);
     } catch (e) {
       const message = e?.message || 'Wallet request failed or was rejected.';
       if (/passphrase and private key accounts cannot be unlocked on web/i.test(message)) {
@@ -201,7 +244,7 @@ export default function TestnetCheckout() {
   return (
     <section className="card checkout" id="testnet-checkout">
       <div className="checkout-top">
-        <div><span className="eyebrow">PHASE 2 / PAYMENT LAB</span><h2>TEC TEST CHECKOUT</h2></div>
+        <div><span className="eyebrow">PHASE 4 / TESTNET VERIFICATION LAB</span><h2>TEC TEST CHECKOUT</h2></div>
         <span className="lab-badge">LOCAL TEST ORDER LOG</span>
       </div>
       <p className="checkout-intro">Practice a wallet-authorized Testnet token transfer.
@@ -249,6 +292,20 @@ export default function TestnetCheckout() {
         )}
       </div>
 
+      {orderId && !receipt && !mockReceipt && (
+        <div className="manual-verify">
+          <label className="eyebrow" htmlFor="digest-input">VERIFY AN ON-CHAIN TESTNET TRANSACTION</label>
+          <p>Already transferred 9 TEC from this wallet to the test receiver during this quote? Paste that transaction's digest to ask the local server to verify it. This NEVER signs or sends coins.</p>
+          <input id="digest-input" type="text" value={digestInput} autoComplete="off"
+            spellCheck="false" placeholder="Sui transaction digest" maxLength={80}
+            onChange={event => setDigestInput(event.target.value)} />
+          <button className="quote-button" type="button" disabled={busy || !digestInput.trim()}
+            onClick={manuallyVerifyDigest}>
+            {busy ? 'Checking Sui Testnet…' : 'Verify digest on Sui Testnet'}
+          </button>
+          {submittedDigest && <small>Wallet submitted: {submittedDigest}. If verification fails temporarily, retry above; the on-chain transfer is not reversed.</small>}
+        </div>
+      )}
       {error && <p role="alert" className="error">{error}</p>}
       {mockReceipt && (
         <div className="demo-receipt" role="status">
@@ -261,8 +318,9 @@ export default function TestnetCheckout() {
       )}
       {receipt && (
         <div className="demo-receipt" role="status">
-          <b>✓ Testnet transfer executed</b>
-          <p>{TOKENS_TO_SEND} TEC was sent to the development wallet. No merchandise order was created.</p>
+          <b>✓ Verified TEC transfer on Sui Testnet</b>
+          <p>The local development server confirmed the sender, test receiver, exact TEC amount and transaction timestamp. This is not a real merchandise payment.</p>
+          <p>Test order: <code>{orderId}</code> · VERIFIED_TESTNET</p>
           <a href={'https://suiscan.xyz/testnet/tx/' + receipt}
              rel="noreferrer" target="_blank">View blockchain transaction ↗</a>
           <button type="button" onClick={() => { setReceipt(''); setError(''); }}>Try another test</button>
@@ -276,7 +334,7 @@ export default function TestnetCheckout() {
             <div key={order.id} className="demo-history-row">
               <code>{order.id.slice(0, 12)}</code>
               <span>{order.totalTec} TEC</span>
-              <b>{order.status === 'simulated' ? 'SIMULATED · NOT PAID' : 'QUOTE ONLY'}</b>
+              <b>{order.status === 'simulated' ? 'SIMULATED · NOT PAID' : order.status === 'verified_testnet' ? '✓ VERIFIED TESTNET TRANSFER' : 'QUOTE ONLY'}</b>
             </div>
           ))}
           <small>Development records stored only on this device. No real purchases.</small>
@@ -285,8 +343,8 @@ export default function TestnetCheckout() {
       <p className="checkout-warning">⚠️ TESTNET ONLY. The green SIMULATE button never sends tokens; it saves a local NOT PAID record on the Termux development server. The separate optional transfer button asks Slush to send {TOKENS_TO_SEND} test TEC
         to the development wallet, and gas fees consume Testnet SUI. No actual EUR/TEC price exists.
         Imported passphrase/private-key accounts may be restricted from signing via Slush Web; this app does not bypass wallet restrictions. The demo quote expires on the local server after two minutes, but does not enforce an on-chain expiry.
-        Real orders require a server-issued quote, replay protection, verified transaction details,
-        legal review, and server-side order settlement.</p>
+        A verified Testnet transfer is not a production checkout. A simple token transfer has no unique on-chain order identifier; this local demo must never be used for actual sales.
+        Before real orders: server authentication, a binding payment nonce, secure receiver custody, robust replay prevention, production settlement testing, and legal review.</p>
     </section>
   );
 }
