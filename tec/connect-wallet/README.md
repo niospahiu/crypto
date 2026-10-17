@@ -66,3 +66,31 @@ The `HISTORICAL TESTNET TRANSFER AUDIT` panel accepts an existing public digest.
 This separate endpoint is `POST /api/tec-demo/audit` and returns the unambiguous flag `verified_transfer_only`, `matchesOrder: false`. It never says PAID. Old pre-quote or post-expiry transfers cannot be retroactively attached to a new order. This prevents repeating token transfers while investigating UI timing errors.
 
 Run the full offline test suite with `npm run test:verify`. 
+## Phase 7 — On-chain Quote Inspector (READ ONLY)
+
+The prototype app now includes a stand-alone panel for inspecting the **first
+existing TEC-TEST-001 quote**, identified by Sui object ID
+`0x8aca403881fca62cf43e02eb80b5e4635d3ed1fd4b389bb566e10a9b169cd700`.
+
+The inspector reads the quote directly from Sui Testnet using the Sui SDK, and
+validates the exact deployed package type, coin type, official merchant-cap ID,
+buyer ownership, receiver, and amount. It displays the decoded order reference,
+expiry and clear **NOT PAID** status. It never asks for mnemonic, writes to chain,
+changes old order records, signs transactions, or mints a token.
+
+To test in normal Termux:
+
+```sh
+cd ~/crypto && git pull --ff-only
+cd tec/connect-wallet
+node --test server/quoteInspector.test.js
+npm run dev
+```
+
+Scroll to the **PHASE 7 / ON-CHAIN QUOTE INSPECTOR** card. This is a bridge
+toward a production checkout architecture, NOT the checkout itself. The
+existing Phase 4 demonstration is unchanged.
+
+Next steps will need: secure merchant-only quote issuing, protection against
+duplicate order refs, a real wallet signing flow for consuming the unique quote,
+and a server that checks the payment event and receipt, with replay prevention.

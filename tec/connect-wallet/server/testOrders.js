@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { verifyTestnetTransfer, auditHistoricalTransfer, VerificationError, DEMO_RECEIVER } from './verifyTransfer.js';
+import { inspectOnchainQuote } from './quoteInspector.js';
 
 // Local-only Vite middleware for EDUCATIONAL fake orders.
 // No payment settlement, blockchain transfer, or wallet key ever occurs here.
@@ -58,6 +59,12 @@ export function testOrdersPlugin() {
           return respond(res, 403, { error: 'Cross-origin request rejected' });
         }
         try {
+          // Dedicated READ-ONLY Testnet smart-contract Quote inspector.
+          if (req.method === 'GET' && u.pathname === '/api/tec-demo/onchain-quote') {
+            const quoteId = u.searchParams.get('id') || undefined;
+            const inspected = await inspectOnchainQuote({ quoteId });
+            return respond(res, 200, inspected);
+          }
           if (req.method === 'POST' && u.pathname === '/api/tec-demo/quotes') {
             const body = await parseJson(req);
             if (!ADDRESS_PATTERN.test(body.walletAddress || '')) {

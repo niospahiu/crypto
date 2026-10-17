@@ -100,3 +100,19 @@ footer span{display:block}
 @media(max-width:750px){
   .manual-verify{padding:15px 13px}
 }
+
+/* Read-only Phase 7 quote inspector */
+.inspector{margin-top:22px}
+.inspector h2{font-family:'Barlow Condensed',sans-serif;font-size:34px;margin:12px 0}
+.inspector p{color:#b5c3c8;font-size:13px;line-height:1.7}
+.inspector label{display:block;margin:16px 0 9px}
+.inspector input{display:block;width:100%;min-width:0;border:1px solid #47615e;border-radius:9px;background:#0a1115;color:#e9f4f0;padding:13px 12px;font:12px monospace;margin-bottom:12px}
+.inspector>.quote-button{width:100%}
+.quote-inspector-result{margin-top:17px;background:#10221e;border:1px solid #3b7154;border-radius:14px;padding:18px}
+.quote-inspector-result>strong{color:#a4ecc0}
+.quote-inspector-result dl{margin:15px 0}
+.quote-inspector-result dl>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #365249;padding:12px 0;font-size:12px}
+.quote-inspector-result dt{color:#b1c3c1}
+.quote-inspector-result dd{font-weight:700;margin:0;text-align:right;overflow-wrap:anywhere}
+.quote-expired{color:#ffca86}
+.quote-inspector-result a{color:#b5ebd0;font-size:13px}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import TestnetCheckout from './TestnetCheckout.jsx';
+import QuoteInspector from './QuoteInspector.jsx';
 import { useCurrentAccount, useCurrentClient, useCurrentNetwork, useCurrentWallet } from '@mysten/dapp-kit-react';
 
 const PACKAGE = '0xed823c98495cc251a6d9f5bf3bf60a87783c4aebbf6c55830484e4ee60d487d4';
@@ -127,6 +128,7 @@ export default function App() {
           </aside>
         </div>
         <TestnetCheckout />
+        <QuoteInspector />
       </main>
       <footer><span>© THE EASTERN CODE · DEV 01</span><span>TESTNET TOKENS ARE NOT REAL MONEY</span></footer>
     </div></div>
