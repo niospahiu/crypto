@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import TestnetCheckout from './TestnetCheckout.jsx';
 import QuoteInspector from './QuoteInspector.jsx';
+import EnginePaymentLab from './EnginePaymentLab.jsx';
 import { useCurrentAccount, useCurrentClient, useCurrentNetwork, useCurrentWallet } from '@mysten/dapp-kit-react';
 
 const PACKAGE = '0xed823c98495cc251a6d9f5bf3bf60a87783c4aebbf6c55830484e4ee60d487d4';
@@ -105,7 +106,7 @@ export default function App() {
         <section className="hero">
           <span className="eyebrow">SUI NETWORK / EXPERIMENTAL</span>
           <h1>YOUR CODE.<br /><em>YOUR WALLET.</em></h1>
-          <p>Connect a Sui wallet and check your <b>real TEC Testnet balance</b> — without sending tokens or signing transactions.</p>
+          <p>Connect a Sui wallet to check your <b>TEC Testnet balance</b>. Optional Testnet-only contract experiments are available below.</p>
           <div className="connect"><ConnectButton><span>Connect Wallet ↗</span></ConnectButton></div>
           <small>Slush compatible · Testnet balances · No monetary value</small>
         </section>
@@ -121,14 +122,15 @@ export default function App() {
               </dl>
             </section>
             <section className="card callout"><span className="eyebrow">DEVELOPMENT STATUS</span>
-              <h3>Wallet Connection · Phase 1</h3>
-              <p>Only public balances are read from Sui Testnet. Checkout, discounts and payments are not implemented here.</p>
+              <h3>TEC Development · Testnet Lab</h3>
+              <p>Wallet balances, demo order checks and a separate optional Move-contract Testnet payment lab are available. No real checkout or actual sales.</p>
               <a href={'https://suiscan.xyz/testnet/object/' + PACKAGE} target="_blank" rel="noreferrer">TEC contract ↗</a>
             </section>
           </aside>
         </div>
         <TestnetCheckout />
         <QuoteInspector />
+        <EnginePaymentLab />
       </main>
       <footer><span>© THE EASTERN CODE · DEV 01</span><span>TESTNET TOKENS ARE NOT REAL MONEY</span></footer>
     </div></div>

@@ -116,3 +116,15 @@ footer span{display:block}
 .quote-inspector-result dd{font-weight:700;margin:0;text-align:right;overflow-wrap:anywhere}
 .quote-expired{color:#ffca86}
 .quote-inspector-result a{color:#b5ebd0;font-size:13px}
+
+/* Isolated Phase 8A buyer-signed on-chain TESTNET checkout lab */
+.engine-pay{margin-top:24px}
+.engine-pay h2{font-family:'Barlow Condensed',sans-serif;font-size:clamp(28px,6vw,42px)}
+.engine-pay p{color:#b0c4bc;font-size:13px;line-height:1.7}
+.engine-pay label{display:block;margin:18px 0 10px;color:#9ab3a3}
+.engine-pay input{box-sizing:border-box;width:100%;min-width:0;border:1px solid #43645b;border-radius:10px;background:#0a1419;color:#f2fafa;padding:14px;font:13px monospace;margin-bottom:13px}
+.engine-pay button{width:100%;margin:12px 0}
+.engine-details{border:1px solid #3e765c;border-radius:12px;padding:18px;margin:22px 0;background:#0f241d}
+.engine-details>div{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #30564b;font-size:13px}
+.engine-details strong,.engine-details b{text-align:right;overflow-wrap:anywhere}
+.engine-pay .demo-receipt code{overflow-wrap:anywhere}
