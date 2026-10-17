@@ -1,0 +1,6 @@
+[package]
+name = "tec_payment_engine"
+edition = "2024"
+
+[addresses]
+tec_payment_engine = "0x0"
