@@ -53,7 +53,7 @@ function checkpointTimeMs(timestamp) {
   return Number(millis);
 }
 
-export async function verifyTestnetTransfer({ client = testnetClient, order, digest }) {
+export async function verifyTestnetTransfer({ client = testnetClient, order, digest, checkQuoteWindow = true }) {
   if (!DIGEST_PATTERN.test(digest || '')) {
     throw new VerificationError('Enter a valid Sui transaction digest.', 400);
   }
@@ -110,7 +110,7 @@ export async function verifyTestnetTransfer({ client = testnetClient, order, dig
   const occurredAt = checkpointTimeMs(raw?.timestamp);
   // The observed chain timestamp must fall within the server-generated
   // quote window. The verifier can be called after the quote expires.
-  if (occurredAt < order.createdAt) {
+  if (checkQuoteWindow && occurredAt < order.createdAt) {
     throw new VerificationError(
       'VALID TESTNET TRANSFER, BUT NOT THIS ORDER: The 9 TEC transfer was confirmed at ' +
       new Date(occurredAt).toISOString() + ', BEFORE this demo quote began at ' +
@@ -120,7 +120,7 @@ export async function verifyTestnetTransfer({ client = testnetClient, order, dig
       422,
     );
   }
-  if (occurredAt > order.expiresAt) {
+  if (checkQuoteWindow && occurredAt > order.expiresAt) {
     throw new VerificationError(
       'VALID TESTNET TRANSFER, BUT TOO LATE: The 9 TEC transfer was confirmed at ' +
       new Date(occurredAt).toISOString() + ', AFTER the demo quote deadline ' +
@@ -138,5 +138,33 @@ export async function verifyTestnetTransfer({ client = testnetClient, order, dig
     amountRaw: DEMO_AMOUNT_RAW.toString(),
     receiver: DEMO_RECEIVER,
     network: 'testnet',
+  };
+}
+
+/**
+ * Read-only historical transfer audit, separate from quote verification.
+ * This NEVER changes an order or grants PAID status. It intentionally checks
+ * only the on-chain transfer details, not association with a timed quote.
+ */
+export async function auditHistoricalTransfer({ client = testnetClient, digest, walletAddress }) {
+  if (!/^0x[a-fA-F0-9]{64}$/.test(walletAddress || '')) {
+    throw new VerificationError('Supply the full connected Sui wallet address.', 400);
+  }
+  const evidence = await verifyTestnetTransfer({
+    client,
+    digest,
+    checkQuoteWindow: false,
+    order: {
+      walletAddress: walletAddress.toLowerCase(),
+      network: 'testnet',
+      status: 'quoted',
+      totalTec: '9',
+    },
+  });
+  return {
+    ...evidence,
+    status: 'verified_transfer_only',
+    matchesOrder: false,
+    warning: 'On-chain 9 TEC transfer verified. NOT linked to any order or quote. No order was marked paid.',
   };
 }
