@@ -1,22 +1,36 @@
-# TEC Connect Wallet — Sui Testnet
+# TEC Connect Wallet & Test Checkout — Sui Testnet
 
-A read-only Sui wallet connection and TEC balance viewer for **The Eastern Code**, based on the current `@mysten/dapp-kit-react` + gRPC SDK.
+Experimental frontend for **The Eastern Code**. Wallet integration uses `@mysten/dapp-kit-react` with `@mysten/sui` over Sui Testnet.
 
-## Android Termux startup (native Termux, NOT the Ubuntu proot)
+## Start in native Android Termux
 
 ```sh
-exit  # only if the prompt is root@localhost (leave proot-distro)
-pkg update && pkg install git nodejs-lts -y
-git clone https://github.com/niospahiu/crypto.git
-cd crypto/tec/connect-wallet
-npm install
+cd ~/crypto
+git pull --ff-only
+cd tec/connect-wallet
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173` on the same Android phone. Tap **Connect Wallet** and approve in Slush if supported by your browser. **Mobile wallet handoffs may require public HTTPS hosting**, not localhost; run `npm run build` and deploy `dist` to an HTTPS static site for a production-like connection test.
+Open `http://127.0.0.1:5173` in Chrome on the same phone while Vite is running. If dependencies are not installed yet, run `npm install` before `npm run dev`.
 
-The app reads actual TEC / SUI balances for whichever Sui account the wallet authorizes, with the current Testnet coin type and 6 decimals. Refresh, copy address, Suiscan link and connection state are included.
+## Current functionality
 
-**Security:** no private keys, mnemonics, or signatures required. No real transfers/payments, mainnet or live exchange rate. Testnet coins are not money. Never reuse the publicly exposed test wallet seeds for mainnet.
+- Slush wallet connect and account switching
+- Read-only **TEC balance** with 6 decimals, **SUI Testnet gas balance**, refresh, copy address, explorer link
+- An **opt-in Testnet payment lab**: a fictional TEC patch priced at €10, a **fake** rate of €1 / TEC, a 10% sample discount, and a two-minute **UI-only** quote that computes 9 TEC
+- Two deliberate actions before any transfer: create quote, then approve the transaction (Slush also requests user permission)
+- If approved, actually transfers **9 Testnet TEC** from the connected wallet to the known test `tec-dev` account. This is **not** a real order. The wallet's TEC balance decreases and a little Testnet SUI gas is spent.
+- Displays transaction digest and a Suiscan testnet transaction link on success.
 
-Sources: https://sdk.mystenlabs.com/dapp-kit/getting-started/react and https://sdk.mystenlabs.com/sui/clients/querying
+## Important limits
+
+**Testnet tokens have no monetary value.** No real EUR/TEC exchange rate exists for this token. The two-minute countdown is client-side only and cannot invalidate a transaction after the wallet has already approved it. The receipt shown in this demo is **not merchant settlement verification**.
+
+Before any real checkout, the project requires a server-generated quote, a fixed beneficiary wallet with protected keys, verification on the server of the exact coin type/recipient/amount and transaction success, idempotency/replay protection, expired quote handling, persistently stored orders, security review, and appropriate legal treatment. No Mainnet features are provided.
+
+The `tec-dev` and `eloquent-jasper` recovery phrases appeared in earlier screenshots, so **do not send real assets to those addresses or reuse them for Mainnet**.
+
+Documentation:
+- https://sdk.mystenlabs.com/dapp-kit/getting-started/react
+- https://sdk.mystenlabs.com/sui/transactions/coins-and-balances
+- https://sdk.mystenlabs.com/dapp-kit/actions/sign-and-execute-transaction
