@@ -30,6 +30,9 @@ export default function TestnetCheckout() {
   const [error, setError] = useState('');
   const [attemptedFrom, setAttemptedFrom] = useState('');
   const [mockReceipt, setMockReceipt] = useState(false);
+  const [orderId, setOrderId] = useState('');
+  const [demoHistory, setDemoHistory] = useState([]);
+  const [demoRef, setDemoRef] = useState('');
 
   // No automatic wallet actions. Timer is UI-only, not a payment guarantee.
   useEffect(() => {
@@ -50,25 +53,74 @@ export default function TestnetCheckout() {
     setError('');
     setAttemptedFrom('');
     setMockReceipt(false);
+    setOrderId('');
+    setDemoRef('');
+    setDemoHistory([]);
+    if (account?.address && network === 'testnet') {
+      fetch('/api/tec-demo/orders?wallet=' + encodeURIComponent(account.address))
+        .then(response => response.ok ? response.json() : { orders: [] })
+        .then(data => setDemoHistory(Array.isArray(data.orders) ? data.orders : []))
+        .catch(() => {});
+    }
   }, [account?.address, network]);
 
-  function generateQuote() {
+  async function generateQuote() {
+    if (busy) return;
+    if (!account || network !== 'testnet') {
+      setError('Connect a Testnet wallet before creating a demonstration order.');
+      return;
+    }
+    setBusy(true);
     setReceipt('');
     setMockReceipt(false);
     setError('');
-    setExpiresAt(Date.now() + QUOTE_LENGTH * 1000);
+    setOrderId('');
+    setDemoRef('');
+    setExpiresAt(null);
+    try {
+      const response = await fetch('/api/tec-demo/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: account.address }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to create demonstration quote.');
+      setOrderId(data.id);
+      setExpiresAt(data.expiresAt);
+    } catch (e) {
+      setError(e?.message || 'Local demonstration order server unavailable.');
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function simulateCheckout() {
-    if (!expiresAt || Date.now() >= expiresAt) {
+  async function simulateCheckout() {
+    if (busy) return;
+    if (!orderId || !expiresAt || Date.now() >= expiresAt) {
       setError('The demo quote expired. Create a new one to simulate the checkout.');
       return;
     }
-    if (busy) return;
-    // A local UI-only simulation: never signs, never transfers, never creates an order.
-    setMockReceipt(true);
-    setExpiresAt(null);
+    setBusy(true);
     setError('');
+    try {
+      const response = await fetch('/api/tec-demo/orders/' + encodeURIComponent(orderId) + '/simulate', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Demo could not be recorded.');
+      setMockReceipt(true);
+      setDemoRef(data.id);
+      setExpiresAt(null);
+      const list = await fetch('/api/tec-demo/orders?wallet=' + encodeURIComponent(account.address));
+      if (list.ok) {
+        const result = await list.json();
+        setDemoHistory(Array.isArray(result.orders) ? result.orders : []);
+      }
+    } catch (e) {
+      setError(e?.message || 'Could not save demo to local order history.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function pay() {
@@ -150,11 +202,12 @@ export default function TestnetCheckout() {
     <section className="card checkout" id="testnet-checkout">
       <div className="checkout-top">
         <div><span className="eyebrow">PHASE 2 / PAYMENT LAB</span><h2>TEC TEST CHECKOUT</h2></div>
-        <span className="lab-badge">SIMULATED PRICING</span>
+        <span className="lab-badge">LOCAL TEST ORDER LOG</span>
       </div>
       <p className="checkout-intro">Practice a wallet-authorized Testnet token transfer.
         This is a developer experiment, not a real purchase or protected merchant checkout.
-        Slush Web may prevent imported passphrase/private-key accounts from signing; never enter your key on this website.</p>
+        Slush Web may prevent imported passphrase/private-key accounts from signing; never enter your key on this website.
+        The simulation now saves a local TEST order record in Termux; it is never a paid order.</p>
 
       <div className="checkout-grid">
         <div className="demo-product">
@@ -199,9 +252,10 @@ export default function TestnetCheckout() {
       {error && <p role="alert" className="error">{error}</p>}
       {mockReceipt && (
         <div className="demo-receipt" role="status">
-          <b>✓ Demo checkout flow complete — SIMULATION ONLY</b>
-          <p>Test price: {TOKENS_TO_SEND} TEC. No Slush signature was requested,
-             no TEC or SUI moved and no blockchain transaction or order was created.</p>
+          <b>✓ Demo checkout recorded — SIMULATION ONLY</b>
+          <p>Test price: {TOKENS_TO_SEND} TEC. No Slush signature was requested, no TEC or SUI moved.
+             A local TEST record was saved; no paid order or blockchain transaction exists.</p>
+          <p>Test order ID: <code>{demoRef}</code> · Status: SIMULATED (NOT PAID)</p>
           <button type="button" onClick={generateQuote}>Restart demo</button>
         </div>
       )}
@@ -215,9 +269,22 @@ export default function TestnetCheckout() {
         </div>
       )}
       {walletChanged && <p className="error">Wallet changed while signing. Re-check your receipt on the explorer.</p>}
-      <p className="checkout-warning">⚠️ TESTNET ONLY. The green SIMULATE button never sends anything. The separate optional transfer button asks Slush to send {TOKENS_TO_SEND} test TEC
+      {demoHistory.length > 0 && (
+        <div className="demo-history">
+          <span className="eyebrow">LOCAL TEST ORDER HISTORY</span>
+          {demoHistory.slice(0, 5).map(order => (
+            <div key={order.id} className="demo-history-row">
+              <code>{order.id.slice(0, 12)}</code>
+              <span>{order.totalTec} TEC</span>
+              <b>{order.status === 'simulated' ? 'SIMULATED · NOT PAID' : 'QUOTE ONLY'}</b>
+            </div>
+          ))}
+          <small>Development records stored only on this device. No real purchases.</small>
+        </div>
+      )}
+      <p className="checkout-warning">⚠️ TESTNET ONLY. The green SIMULATE button never sends tokens; it saves a local NOT PAID record on the Termux development server. The separate optional transfer button asks Slush to send {TOKENS_TO_SEND} test TEC
         to the development wallet, and gas fees consume Testnet SUI. No actual EUR/TEC price exists.
-        Imported passphrase/private-key accounts may be restricted from signing via Slush Web; this app does not bypass wallet restrictions. The two-minute timer runs in the browser only; it does not enforce an on-chain expiry.
+        Imported passphrase/private-key accounts may be restricted from signing via Slush Web; this app does not bypass wallet restrictions. The demo quote expires on the local server after two minutes, but does not enforce an on-chain expiry.
         Real orders require a server-issued quote, replay protection, verified transaction details,
         legal review, and server-side order settlement.</p>
     </section>

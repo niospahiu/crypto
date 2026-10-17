@@ -34,3 +34,9 @@ Documentation:
 - https://sdk.mystenlabs.com/dapp-kit/getting-started/react
 - https://sdk.mystenlabs.com/sui/transactions/coins-and-balances
 - https://sdk.mystenlabs.com/dapp-kit/actions/sign-and-execute-transaction
+
+## Phase 3 — Local demo order logging (Termux only)
+
+The built-in Vite development middleware registers `/api/tec-demo/quotes`, `/api/tec-demo/orders?wallet=...`, and `/api/tec-demo/orders/:id/simulate`. These generate **server-timed 120-second demonstration quotes**, store **SIMULATED — NOT PAID** order entries in `.tec-test-orders.json`, and show recent local order history. This record remains after browser refresh and server restart, but is **not** a real customer order, an authenticated wallet signature, or proof of payment. No network transfers are required.
+
+This educational API works only with `npm run dev` on the same device. A static `npm run build` deployment does not contain the API and needs a separate secure backend. **Do not expose the Vite development server publicly, and do not use this code for Mainnet sales or merchant acceptance.**
