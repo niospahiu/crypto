@@ -126,7 +126,7 @@ public fun issue_quote<T>(
     event::emit(QuoteIssued {
         quote_id,
         merchant_cap_id: quote.merchant_cap_id,
-        order_ref: quote.order_ref,
+        order_ref: copy quote.order_ref,
         buyer: quote.buyer,
         receiver: quote.receiver,
         raw_amount: quote.raw_amount,
@@ -166,7 +166,7 @@ public fun pay<T>(
     event::emit(PaymentAccepted {
         quote_id,
         merchant_cap_id,
-        order_ref: order_ref,
+        order_ref: copy order_ref,
         buyer,
         receiver,
         raw_amount,
