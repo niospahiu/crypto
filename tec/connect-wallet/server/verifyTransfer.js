@@ -110,8 +110,25 @@ export async function verifyTestnetTransfer({ client = testnetClient, order, dig
   const occurredAt = checkpointTimeMs(raw?.timestamp);
   // The observed chain timestamp must fall within the server-generated
   // quote window. The verifier can be called after the quote expires.
-  if (occurredAt < order.createdAt || occurredAt > order.expiresAt) {
-    throw new VerificationError('Transaction checkpoint timestamp is outside this quote window.', 422);
+  if (occurredAt < order.createdAt) {
+    throw new VerificationError(
+      'VALID TESTNET TRANSFER, BUT NOT THIS ORDER: The 9 TEC transfer was confirmed at ' +
+      new Date(occurredAt).toISOString() + ', BEFORE this demo quote began at ' +
+      new Date(order.createdAt).toISOString() +
+      '. The tokens already moved; do NOT send them again just to clear this error. ' +
+      'This quote will stay NOT PAID.',
+      422,
+    );
+  }
+  if (occurredAt > order.expiresAt) {
+    throw new VerificationError(
+      'VALID TESTNET TRANSFER, BUT TOO LATE: The 9 TEC transfer was confirmed at ' +
+      new Date(occurredAt).toISOString() + ', AFTER the demo quote deadline ' +
+      new Date(order.expiresAt).toISOString() +
+      '. The tokens already moved; do NOT resend them. ' +
+      'This quote will stay NOT PAID.',
+      422,
+    );
   }
 
   return {
