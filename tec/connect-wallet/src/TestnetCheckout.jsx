@@ -35,6 +35,10 @@ export default function TestnetCheckout() {
   const [demoRef, setDemoRef] = useState('');
   const [digestInput, setDigestInput] = useState('');
   const [submittedDigest, setSubmittedDigest] = useState('');
+  const [auditInput, setAuditInput] = useState('');
+  const [auditResult, setAuditResult] = useState(null);
+  const [auditError, setAuditError] = useState('');
+  const [auditBusy, setAuditBusy] = useState(false);
 
   // No automatic wallet actions. Timer is UI-only, not a payment guarantee.
   useEffect(() => {
@@ -59,6 +63,8 @@ export default function TestnetCheckout() {
     setDemoRef('');
     setDigestInput('');
     setSubmittedDigest('');
+    setAuditResult(null);
+    setAuditError('');
     setDemoHistory([]);
     if (account?.address && network === 'testnet') {
       fetch('/api/tec-demo/orders?wallet=' + encodeURIComponent(account.address))
@@ -126,6 +132,30 @@ export default function TestnetCheckout() {
     setExpiresAt(null);
     setError('');
     await reloadHistory(account.address);
+  }
+
+  async function auditPastTransfer() {
+    if (auditBusy || !account || network !== 'testnet') return;
+    setAuditBusy(true);
+    setAuditResult(null);
+    setAuditError('');
+    try {
+      const response = await fetch('/api/tec-demo/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: account.address, digest: auditInput.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Historical transfer audit failed.');
+      if (data.status !== 'verified_transfer_only' || data.matchesOrder !== false) {
+        throw new Error('Unexpected historical audit response.');
+      }
+      setAuditResult(data);
+    } catch (e) {
+      setAuditError(e?.message || 'Could not audit transfer.');
+    } finally {
+      setAuditBusy(false);
+    }
   }
 
   async function manuallyVerifyDigest() {
@@ -340,6 +370,31 @@ export default function TestnetCheckout() {
           <small>Development records stored only on this device. No real purchases.</small>
         </div>
       )}
+      <div className="manual-verify">
+        <span className="eyebrow">HISTORICAL TESTNET TRANSFER AUDIT</span>
+        <p>Check the previous 9 TEC transfer without paying again. This is a separate, read-only blockchain check.
+           A transfer outside the 120-second quote stays NOT PAID and is never attached to a new order.</p>
+        <input aria-label="Past Sui Testnet transaction digest" type="text"
+          autoComplete="off" spellCheck="false" maxLength={80}
+          placeholder="Paste earlier 9 TEC transaction digest"
+          value={auditInput} onChange={event => setAuditInput(event.target.value)} />
+        <button className="quote-button" type="button"
+          onClick={auditPastTransfer}
+          disabled={auditBusy || !auditInput.trim() || !account || network !== 'testnet'}>
+          {auditBusy ? 'Auditing Sui Testnet…' : 'Audit previous 9 TEC transfer (NO payment)'}
+        </button>
+        {auditError && <p className="error" role="alert">{auditError}</p>}
+        {auditResult && (
+          <div className="demo-receipt" role="status">
+            <b>✓ Verified on-chain transfer — NOT AN ORDER PAYMENT</b>
+            <p>9 TEC confirmed from this test wallet to the TEC development wallet.</p>
+            <p>Chain time: {new Date(auditResult.checkpointAt).toLocaleString()}</p>
+            <p>Quote status: NOT PAID / NO ORDER ASSOCIATED</p>
+            <a href={'https://suiscan.xyz/testnet/tx/' + auditResult.digest}
+              rel="noreferrer" target="_blank">View Testnet transaction ↗</a>
+          </div>
+        )}
+      </div>
       <p className="checkout-warning">⚠️ TESTNET ONLY. The green SIMULATE button never sends tokens; it saves a local NOT PAID record on the Termux development server. The separate optional transfer button asks Slush to send {TOKENS_TO_SEND} test TEC
         to the development wallet, and gas fees consume Testnet SUI. No actual EUR/TEC price exists.
         Imported passphrase/private-key accounts may be restricted from signing via Slush Web; this app does not bypass wallet restrictions. The demo quote expires on the local server after two minutes, but does not enforce an on-chain expiry.
