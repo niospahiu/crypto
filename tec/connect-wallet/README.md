@@ -58,3 +58,11 @@ Only if all checks pass is the local order flagged `verified_testnet`. This neve
 Run offline verifier unit tests in Termux with `npm run test:verify`. These use fake RPC client responses and do not move tokens.
 
 **Not production-safe:** The local API is unauthenticated and a generic Sui coin transfer has no cryptographic order-specific payment nonce. Do not open this dev server to the internet, attach payment fulfilment, or reuse screenshots-exposed wallet keys with money. A real payment flow requires per-order on-chain binding (e.g., contract event / nonce), user authentication, server-side settlement, secure merchant custody, monitoring and review.
+
+## Phase 4b — audit an earlier transfer, without another payment
+
+The `HISTORICAL TESTNET TRANSFER AUDIT` panel accepts an existing public digest. The local server checks Sui Testnet for a successful **exactly 9 TEC** transfer from the currently connected wallet to the test development wallet, and shows the checkpoint time. It does **not** require a new timed quote and does **not** modify any existing order.
+
+This separate endpoint is `POST /api/tec-demo/audit` and returns the unambiguous flag `verified_transfer_only`, `matchesOrder: false`. It never says PAID. Old pre-quote or post-expiry transfers cannot be retroactively attached to a new order. This prevents repeating token transfers while investigating UI timing errors.
+
+Run the full offline test suite with `npm run test:verify`. 
