@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  verifyTestnetTransfer, VerificationError, TEC_TYPE, DEMO_RECEIVER,
+  verifyTestnetTransfer, auditHistoricalTransfer, VerificationError, TEC_TYPE, DEMO_RECEIVER,
   DEMO_AMOUNT_RAW,
 } from './verifyTransfer.js';
 
@@ -108,6 +108,39 @@ test('rejects unverified metadata', async () => {
   c.ledgerService.getTransaction=async () => ({ response: { transaction: {} } });
   await assert.rejects(
     verifyTestnetTransfer({ client: c, order: ORDER, digest: DIGEST }),
+    VerificationError,
+  );
+});
+
+test('historical audit accepts real-shaped older transfer but never links an order', async () => {
+  const old = CREATED - 30_000;
+  const proof = await auditHistoricalTransfer({
+    client: mockClient({ occurredAt: old }),
+    digest: DIGEST,
+    walletAddress: PAYER,
+  });
+  assert.equal(proof.status, 'verified_transfer_only');
+  assert.equal(proof.matchesOrder, false);
+  assert.equal(proof.checkpointAt, old);
+  assert.equal(proof.amountRaw, '9000000');
+});
+
+test('historical audit still rejects incorrect recipient and TEC amount', async () => {
+  for (const opts of [{ recipient: PAYER }, { amount: 5_000_000n }]) {
+    await assert.rejects(
+      auditHistoricalTransfer({
+        client: mockClient(opts), digest: DIGEST, walletAddress: PAYER,
+      }),
+      VerificationError,
+    );
+  }
+});
+
+test('historical audit never accepts a different sender', async () => {
+  await assert.rejects(
+    auditHistoricalTransfer({
+      client: mockClient({ sender: DEMO_RECEIVER }), digest: DIGEST, walletAddress: PAYER,
+    }),
     VerificationError,
   );
 });
