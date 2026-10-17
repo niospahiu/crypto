@@ -7,6 +7,7 @@ const TEC_TYPE = PACKAGE + '::tec::TEC';
 const ICON = 'https://raw.githubusercontent.com/niospahiu/crypto/main/tec/tec-coin-icon.jpg';
 
 function formatAmount(raw, decimals) {
+  if (raw === undefined || raw === null || raw === '') return '—';
   const value = BigInt(raw);
   const base = 10n ** BigInt(decimals);
   const whole = (value / base).toLocaleString('en-US');
@@ -31,7 +32,14 @@ function Balances({ account, client }) {
       client.getBalance({ owner: account.address, coinType: TEC_TYPE }),
       client.getBalance({ owner: account.address }),
     ]).then(([tec, sui]) => {
-      if (!closed) setData({ tec: tec.balance, sui: sui.balance });
+      // Sui Core API returns { balance: { coinType, balance, ... } }.
+      // Passing the outer object to BigInt() crashed React after wallet connection.
+      const tecRaw = tec?.balance?.balance;
+      const suiRaw = sui?.balance?.balance;
+      if (tecRaw === undefined || suiRaw === undefined) {
+        throw new Error('Sui returned an unexpected balance format. Please refresh.');
+      }
+      if (!closed) setData({ tec: String(tecRaw), sui: String(suiRaw) });
     }).catch(err => {
       if (!closed) setError(err.message || 'Unable to read the network.');
     }).finally(() => { if (!closed) setLoading(false); });
