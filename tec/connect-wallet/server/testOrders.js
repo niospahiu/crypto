@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { verifyTestnetTransfer, VerificationError, DEMO_RECEIVER } from './verifyTransfer.js';
+import { verifyTestnetTransfer, auditHistoricalTransfer, VerificationError, DEMO_RECEIVER } from './verifyTransfer.js';
 
 // Local-only Vite middleware for EDUCATIONAL fake orders.
 // No payment settlement, blockchain transfer, or wallet key ever occurs here.
@@ -84,6 +84,13 @@ export function testOrdersPlugin() {
             return respond(res, 200, {
               orders: orders.filter(x => x.walletAddress === wallet.toLowerCase()).slice(-15).reverse(),
             });
+          }
+          // Historical on-chain audit: deliberately read-only, never tied to a
+          // quote and NEVER changes an order's status to paid/verified.
+          if (req.method === 'POST' && u.pathname === '/api/tec-demo/audit') {
+            const { digest, walletAddress } = await parseJson(req);
+            const evidence = await auditHistoricalTransfer({ digest, walletAddress });
+            return respond(res, 200, evidence);
           }
           const verifyMatch = u.pathname.match(VERIFY_ROUTE);
           if (req.method === 'POST' && verifyMatch) {
